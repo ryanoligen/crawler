@@ -161,6 +161,7 @@ import time
 import requests
 from bs4 import BeautifulSoup
 
+import pandas as pd
 
 # import lxml
 from email.mime.text import MIMEText
@@ -173,6 +174,36 @@ from smtplib import SMTP_SSL
 # 3.发送邮件
 # 4.定时任务
 # 5.命令行执行
+time_filter = time.strftime('%m-%d')
+
+def get_comment(url, time_filter):
+    comment_lst = []
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.114 Safari/537.36"
+    }
+    guba_resp = requests.get(url, headers=headers)
+    guba_resp.encoding = 'utf8'
+    page = BeautifulSoup(guba_resp.text, 'html.parser')
+
+    # 定位到评论
+    rexp = re.compile(r'articleh normal_post')
+    comments = page.find(id="mainbody").find_all(class_=rexp)
+    for comment in comments:
+        # 评论时间
+        time_ = comment.find(class_="l5").string
+        if time_.split(' ')[0] < time_filter: # 过滤掉早于time_filter的评论
+            break
+        # 评论作者        
+        author = comment.find(class_='l4').a.string
+        if author == '基金资讯':  # 过滤掉基金资讯发表的评论（公告）
+            continue
+        # 评论内容
+        content = comment.find('a').string
+        comment_lst.append(dict(content=content, author=author, time_=time_))
+    guba_resp.close()
+    return comment_lst
+
 
 
 url = 'http://fund.eastmoney.com/company/80053708.html'
@@ -182,49 +213,32 @@ headers = {
 
 resp = requests.get(url, headers=headers)
 resp.encoding = 'utf8'
-# print(resp.text)
+# 定位到开放式基金区域
 htf_fund_table = BeautifulSoup(resp.text, 'html.parser').find(id="kfsFundNetWrap")
 htf_fund_rows = htf_fund_table.tbody # .获取的是第一个匹配的标签，这里是第一个tbody标签
+# 定位到股吧链接
 htf_funds = htf_fund_rows.find_all('tr')
 for fund in htf_funds:
     fund_name = fund.find(class_='name').string
     fund_code = fund.find(class_='code').string
-    fund_guba = fund.find_all('a')[2].get('href')  # 第三个a标签
-    # print(fund_guba)
+    # 股吧url
+    fund_guba = 'http:' + fund.find_all('a')[2].get('href').strip()  # 第三个a标签
     guba_resp = requests.get(fund_guba, headers=headers)
+    # 获取股吧response headers，获取重定向url
     guba_url = guba_resp.history[-1].headers['location']
     guba_resp.close()
+    comment = get_comment(guba_url, time_filter)
+    if not comment: # 该基金当日有新的评论
+        dic = {'fund_name':fund_name, 'fund_code':fund_code, 'comment':comment}
+    print(dic)
+resp.close()
 
 
-    # 重定向
-    # 获取response headers
-    # 再定位到guba，调用get_comment函数
+
     
 
-# url = "http://guba.eastmoney.com/list,of501031.html"
+# 每日2:50轮询 沪深300行情提醒 
+# 跌幅大于2%，累计几天跌幅大于3%，邮件提醒
 
 
-def get_comment(url, time_filter):
-    comment_lst = []
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.114 Safari/537.36"
-    }
-    guba_resp = requests.get(url, headers=headers)
-    guba_resp.encoding = 'utf8'
-    page = BeautifulSoup(guba_resp.text, 'html.parser')
 
-    rexp = re.compile(r'articleh normal_post')
-    comments = page.find(id="mainbody").find_all(class_=rexp)
-    for comment in comments:
-        time_ = comment.find(class_="l5").string
-        if time_.split(' ')[0] < time_filter: # 过滤掉早于time_filter的评论
-            break
-        content = comment.find('a').string
-        # content1 = comment.find(class_='l3').a.string
-        author = comment.find(class_='l4').a.string
-        if author == '基金资讯':  # 过滤掉基金资讯发表的评论
-            continue
-        comment_lst.append(dict(content=content, author=author, time_=time_))
-    return comment_lst
-
-# print(get_comment(url, time_filter))
