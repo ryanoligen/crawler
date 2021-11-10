@@ -1,3 +1,22 @@
+# 需求
+# - 基本功能
+#     - 爬取所有基金的当天评论
+#     - 写入excel
+# - 程序优化
+#     - 写入日志
+#     - 定时任务
+#     - 发送邮件
+#     - 命令行执行
+#     - 拆分成函数
+#     - 写成类
+# - 数据分析
+#     - 简单统计分析
+#     - 词云
+
+
+
+
+import os, sys
 import re 
 import time
 
@@ -11,12 +30,7 @@ from email.mime.text import MIMEText
 from email.header import Header
 from smtplib import SMTP_SSL
 
-# 需求
-# 1.爬取当天评论，所有基金下的
-# 2.数据汇总，关键字匹配
-# 3.发送邮件
-# 4.定时任务
-# 5.命令行执行
+
 time_filter = time.strftime('%m-%d')
 
 def get_comment(url, time_filter):
@@ -38,7 +52,7 @@ def get_comment(url, time_filter):
     for comment in comments:
         # 评论时间
         time_ = comment.find(class_="l5").string
-        if time_.split(' ')[0] < time_filter: # 过滤掉早于time_filter的评论
+        if time_.split(' ')[0] != time_filter: # 过滤掉不是time_filter当天的评论
             break
         # 评论作者，如果作者没有超链接直接取string，否则取a.string  
         author = comment.find(class_='l4').a.string if comment.find(class_='l4').a else comment.find(class_='l4').string
@@ -51,8 +65,7 @@ def get_comment(url, time_filter):
     return comment_lst
 
 
-df = pd.DataFrame()
-df_lst = []
+comments = []
 # 抓取汇添富所有基金不晚于某一时间点的评论
 url = 'http://fund.eastmoney.com/company/80053708.html'
 headers = {
@@ -70,6 +83,7 @@ for fund in htf_funds:
     time.sleep(2)
     fund_name = fund.find(class_='name').string
     fund_code = fund.find(class_='code').string
+    name_code = {'fund_name':fund_name, 'fund_code':fund_code}
     # 股吧url
     fund_guba = 'http:' + fund.find_all('a')[2].get('href').strip()  # 第三个a标签
     guba_resp = requests.get(fund_guba, headers=headers)
@@ -79,11 +93,24 @@ for fund in htf_funds:
     guba_resp.close()
     comment = get_comment(guba_url, time_filter)
     if comment: # 该基金当日有新的评论，过滤掉无评论的基金
-        dic = {'fund_name':fund_name, 'fund_code':fund_code, 'comment':comment}
-        print(dic)
+        # dic = {'fund_name':fund_name, 'fund_code':fund_code, 'comment':comment}
+        com_lst = [{**name_code, **dic} for dic in comment] # 将名称代码字典和评论字典合并
+        comments += com_lst
         # df.append(dic, ignore_index=True)
-        df_lst.append(dic)
+        # df_lst.append(dic)
 resp.close()
+
+
+# 数据处理
+
+com_df = pd.DataFrame([dic.values() for dic in comments], columns=list(comments[0].keys()))
+
+today = time.strftime('%y-%m-%d')
+dir_path = os.path.dirname(os.path.abspath(__file__))
+file_path = os.path.join(dir_path, 'htf_fund_comment\\'+today+'.xlsx')
+com_df.to_excel(file_path, index=False)
+
+
 
 
 # def main():
