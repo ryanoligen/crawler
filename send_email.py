@@ -1,19 +1,20 @@
 import smtplib
 from email.header import Header
 from email.mime.text import MIMEText
- 
+
 # 第三方 SMTP 服务
 mail_host = "smtp.126.com"      # SMTP服务器
 mail_user = "wancial@126.com"                  # 用户名
-mail_pass = "XGBQNBUKKKBQLLHE"               # 授权密码，非登录密码
+with open('mail_pwd', 'r') as f:
+    mail_pwd = f.read() # 保存密码到文件中
  
 sender = 'wancial@126.com'    # 发件人邮箱(最好写全, 不然会失败)
 receivers = ['wancial@126.com', 'wcly24@163.com']  # 接收邮件，可设置为你的QQ邮箱或者其他邮箱
  
-content = 'this is a test email'
+content = 'this is a test email, hi this is ryan oligen'
 title = 'test email'  # 邮件主题
  
-def sendEmail():
+def send_email():
  
     message = MIMEText(content, 'plain', 'utf-8')  # 内容, 格式, 编码
     message['From'] = "{}".format(sender)
@@ -22,7 +23,7 @@ def sendEmail():
  
     try:
         smtpObj = smtplib.SMTP_SSL(mail_host, 465)  # 启用SSL发信, 端口一般是465
-        smtpObj.login(mail_user, mail_pass)  # 登录验证
+        smtpObj.login(mail_user, mail_pwd)  # 登录验证
         smtpObj.sendmail(sender, receivers, message.as_string())  # 发送
         print("mail has been send successfully.")
     except smtplib.SMTPException as e:
@@ -41,4 +42,4 @@ def send_email2(SMTP_host, from_account, from_passwd, to_account, subject, conte
     email_client.quit()
  
 # if __name__ == '__main__':
-sendEmail()
+send_email()

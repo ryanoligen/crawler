@@ -67,7 +67,8 @@ def get_comment(url, time_filter):
 
 comments = []
 # 抓取汇添富所有基金不晚于某一时间点的评论
-url = 'http://fund.eastmoney.com/company/80053708.html'
+# url = 'http://fund.eastmoney.com/company/80053708.html'
+url = 'http://fund.eastmoney.com/Company/80356155.html'    # 永赢
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.114 Safari/537.36"
 }
